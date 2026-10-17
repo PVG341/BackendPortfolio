@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: backend-portfolio-api
+    runtime: docker
+    repo: https://github.com/PVG341/BackendPortfolio
+    plan: free
+    region: singapore
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health/ready
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: TRUST_PROXY_HOPS
+        value: 1
+      - key: WEB_ORIGIN
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: backend-portfolio-redis
+          type: keyvalue
+          property: connectionString
+  - type: keyvalue
+    name: backend-portfolio-redis
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: noeviction

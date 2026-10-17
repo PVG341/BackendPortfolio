@@ -1,0 +1,33 @@
+{
+  "name": "Portfolio_backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @portfolio/web --filter @portfolio/api dev",
+    "dev:web": "pnpm --filter @portfolio/web dev",
+    "dev:api": "pnpm --filter @portfolio/api dev",
+    "build": "pnpm --filter @portfolio/contracts build && pnpm --filter @portfolio/api build && pnpm --filter @portfolio/web build",
+    "lint": "pnpm --filter @portfolio/web lint && pnpm --filter @portfolio/api lint",
+    "test": "pnpm --filter @portfolio/contracts test && pnpm --filter @portfolio/api test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:e2e": "pnpm --filter @portfolio/api test:e2e"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.11.2",
+  "type": "module",
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "vitest": "4.1.11"
+  }
+}
