@@ -11,3 +11,5 @@ test-results/
 .verification/
 *.tsbuildinfo
 *.log
+reset-session.json
+session.json

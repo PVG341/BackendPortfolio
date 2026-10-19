@@ -7,24 +7,72 @@ import {
   Header,
   HttpCode,
   Post,
+  Req,
   Res,
+  HttpException,
+  HttpStatus,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import type { FastifyReply } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import {
+  parseRateLimitRequest,
   parseSessionConfig,
   parseSessionTokenRequest,
-  parseRateLimitRequest,
 } from '@portfolio/contracts';
+import {
+  AbuseProtectionService,
+  type AbuseScope,
+} from '../abuse-protection/abuse-protection.service.js';
 import { RateLimitService } from './rate-limit.service.js';
 
 @Controller('playground/rate-limit')
 export class RateLimitController {
-  constructor(private readonly rateLimitService: RateLimitService) {}
+  constructor(
+    private readonly rateLimitService: RateLimitService,
+    private readonly abuseProtection: AbuseProtectionService,
+  ) {}
+
+  private async enforceServiceQuota(
+    scope: AbuseScope,
+    ip: string,
+    response: FastifyReply,
+  ): Promise<void> {
+    try {
+      const decision = await this.abuseProtection.consume(scope, ip);
+
+      if (decision.allowed) {
+        return;
+      }
+
+      response.header('Retry-After', String(Math.max(1, Math.ceil(decision.retryAfterMs / 1000))));
+
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          scope: 'service',
+          message: 'Service rate limit exceeded',
+          retryAfterMs: decision.retryAfterMs,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        throw error;
+      }
+
+      throw new ServiceUnavailableException('Redis is unavailable');
+    }
+  }
 
   @Post('session')
   @Header('Cache-Control', 'no-store')
-  async createSession(@Body() body: unknown) {
+  async createSession(
+    @Req() httpRequest: FastifyRequest,
+    @Res({ passthrough: true }) response: FastifyReply,
+    @Body() body: unknown,
+  ) {
+    await this.enforceServiceQuota('session', httpRequest.ip, response);
+
     const config = parseSessionConfig(body);
 
     if (config === null) {
@@ -41,7 +89,13 @@ export class RateLimitController {
   @Post('request')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  async request(@Body() body: unknown, @Res({ passthrough: true }) response: FastifyReply) {
+  async request(
+    @Req() httpRequest: FastifyRequest,
+    @Res({ passthrough: true }) response: FastifyReply,
+    @Body() body: unknown,
+  ) {
+    await this.enforceServiceQuota('request', httpRequest.ip, response);
+
     const request = parseRateLimitRequest(body);
 
     if (request === null) {
@@ -83,7 +137,13 @@ export class RateLimitController {
   @Delete('session')
   @HttpCode(204)
   @Header('Cache-Control', 'no-store')
-  async resetSession(@Body() body: unknown): Promise<void> {
+  async resetSession(
+    @Req() httpRequest: FastifyRequest,
+    @Res({ passthrough: true }) response: FastifyReply,
+    @Body() body: unknown,
+  ): Promise<void> {
+    await this.enforceServiceQuota('session', httpRequest.ip, response);
+
     const request = parseSessionTokenRequest(body);
 
     if (request === null) {

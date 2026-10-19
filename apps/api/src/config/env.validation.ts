@@ -12,6 +12,40 @@ function readString(environment: Record<string, unknown>, key: string, fallback?
   return value;
 }
 
+function readInteger(
+  environment: Record<string, unknown>,
+  key: string,
+  minimum: number,
+  maximum: number,
+  fallback: string,
+): number {
+  const value = readString(environment, key, fallback);
+
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`${key} must be an integer`);
+  }
+
+  const parsed = Number(value);
+
+  if (parsed < minimum || parsed > maximum) {
+    throw new Error(`${key} must be between ${minimum} and ${maximum}`);
+  }
+
+  return parsed;
+}
+
+function readAbuseNamespace(environment: Record<string, unknown>): string {
+  const namespace = readString(environment, 'ABUSE_KEY_NAMESPACE');
+
+  if (!/^[a-z0-9][a-z0-9:_-]{0,63}$/i.test(namespace)) {
+    throw new Error(
+      'ABUSE_KEY_NAMESPACE must contain only letters, numbers, colon, underscore, or hyphen',
+    );
+  }
+
+  return namespace;
+}
+
 export function validateEnvironment(environment: Record<string, unknown>): Record<string, unknown> {
   const nodeEnv = readString(environment, 'NODE_ENV', 'development');
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
@@ -56,11 +90,24 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
     throw new Error('REDIS_URL must use redis:// or rediss://');
   }
 
+  const trustProxyHops = readInteger(environment, 'TRUST_PROXY_HOPS', 0, 10, '0');
+
+  const abuseKeyNamespace = readAbuseNamespace(environment);
+
+  const abuseKeySecret = readString(environment, 'ABUSE_KEY_SECRET');
+
+  if (abuseKeySecret.length < 32) {
+    throw new Error('ABUSE_KEY_SECRET must contain at least 32 characters');
+  }
+
   return {
     ...environment,
     NODE_ENV: nodeEnv,
     PORT: port,
     CORS_ORIGIN: corsOrigin,
     REDIS_URL: redisUrl,
+    TRUST_PROXY_HOPS: trustProxyHops,
+    ABUSE_KEY_NAMESPACE: abuseKeyNamespace,
+    ABUSE_KEY_SECRET: abuseKeySecret,
   };
 }

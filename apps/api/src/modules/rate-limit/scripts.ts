@@ -81,3 +81,52 @@ local resetAt = tonumber(oldest[2]) + windowMs
 
 return {1, limit, limit - count - 1, resetAt, 0}
 `;
+
+export const abuseProtectionScript = `
+local windowMs = tonumber(ARGV[1])
+local ipLimit = tonumber(ARGV[2])
+local serviceLimit = tonumber(ARGV[3])
+
+local redisTime = redis.call('TIME')
+local now = tonumber(redisTime[1]) * 1000 + math.floor(tonumber(redisTime[2]) / 1000)
+
+local bucket = math.floor(now / windowMs)
+local resetAt = (bucket + 1) * windowMs
+local ttl = resetAt - now
+
+if ttl < 1 then
+  ttl = 1
+end
+
+local function readCount(key)
+  local storedBucket = redis.call('HGET', key, 'bucket')
+
+  if storedBucket ~= tostring(bucket) then
+    return 0
+  end
+
+  return tonumber(redis.call('HGET', key, 'count') or '0')
+end
+
+local ipCount = readCount(KEYS[1])
+local serviceCount = readCount(KEYS[2])
+
+if ipCount >= ipLimit or serviceCount >= serviceLimit then
+  return {0, resetAt - now}
+end
+
+redis.call('HSET', KEYS[1], 'bucket', tostring(bucket), 'count', tostring(ipCount + 1))
+redis.call('PEXPIRE', KEYS[1], ttl)
+
+redis.call(
+  'HSET',
+  KEYS[2],
+  'bucket',
+  tostring(bucket),
+  'count',
+  tostring(serviceCount + 1)
+)
+redis.call('PEXPIRE', KEYS[2], ttl)
+
+return {1, 0}
+`;

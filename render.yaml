@@ -16,7 +16,11 @@ services:
         value: 10000
       - key: TRUST_PROXY_HOPS
         value: 1
-      - key: WEB_ORIGIN
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ABUSE_KEY_NAMESPACE
+        value: portfolio
+      - key: ABUSE_KEY_SECRET
         sync: false
       - key: REDIS_URL
         fromService:
