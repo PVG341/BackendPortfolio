@@ -12,4 +12,4 @@ test-results/
 *.tsbuildinfo
 *.log
 reset-session.json
-session.json
+session.json.worktrees/
