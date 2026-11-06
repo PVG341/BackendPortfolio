@@ -31,10 +31,12 @@
 ### Task 1: Portfolio shell and shared browser API client
 
 **Files:**
+
 - Modify: `apps/web/src/app/page.tsx`, `apps/web/src/app/globals.css`, `apps/web/src/lib/api-client.ts`
 - Create: `apps/web/src/components/portfolio-shell.tsx`, `apps/web/src/components/rate-limit-playground.tsx`
 
 **Interfaces:**
+
 - Consumes: existing `GET /api/v1/health` and rate-limit API contracts.
 - Produces: a responsive page and client functions returning status, headers, JSON, and duration.
 
@@ -47,10 +49,12 @@
 ### Task 2: SQL demo infrastructure and safe API boundary
 
 **Files:**
+
 - Create: `apps/api/src/infrastructure/postgres/*`, `apps/api/src/modules/sql-playground/*`, `apps/api/test/sql-playground.e2e-spec.ts`, `docker/sql/init.sql`
 - Modify: `apps/api/src/app.module.ts`, `apps/api/src/config/env.validation.ts`, `apps/api/.env.example`, `compose.yaml`
 
 **Interfaces:**
+
 - Produces: `POST /api/v1/playground/sql-injection/query` accepting `{ mode, username }` and returning normalized demo rows.
 
 - [ ] Write e2e tests for parameterized query resistance and for unsafe query behavior against seeded fake rows.
@@ -62,10 +66,12 @@
 ### Task 3: Contact API and Resend delivery boundary
 
 **Files:**
+
 - Create: `apps/api/src/modules/contact/*`, `apps/api/test/contact.e2e-spec.ts`
 - Modify: `apps/api/src/app.module.ts`, `apps/api/src/config/env.validation.ts`, `apps/api/.env.example`, `apps/api/package.json`
 
 **Interfaces:**
+
 - Produces: `POST /api/v1/contact` accepting `{ name, email, message, website? }` and returning `202` on accepted contact requests.
 
 - [ ] Write failing tests for valid contact, invalid payload, honeypot suppression, and provider failure normalization.
@@ -77,10 +83,12 @@
 ### Task 4: Contact UI, integration, and documentation
 
 **Files:**
+
 - Modify: `apps/web/src/components/portfolio-shell.tsx`, `apps/web/src/components/rate-limit-playground.tsx`, `README.md`, `compose.yaml`, `render.yaml`
 - Create: `apps/web/src/components/contact-form.tsx`
 
 **Interfaces:**
+
 - Consumes: Tasks 1-3 API client interfaces.
 - Produces: public contact form and documented local/deployment setup.
 
@@ -92,6 +100,7 @@
 ### Task 5: Verification and repository review
 
 **Files:**
+
 - Modify: only files required to correct verified findings.
 
 - [ ] Run `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`, and `pnpm format:check`.
