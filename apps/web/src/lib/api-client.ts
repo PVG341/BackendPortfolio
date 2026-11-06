@@ -1,4 +1,7 @@
+import type { Algorithm, RateLimitDecision, SessionConfig } from '@portfolio/contracts';
 import { parseApiResponse, type ApiResponse } from './api-response';
+
+export type { RateLimitDecision } from '@portfolio/contracts';
 
 export interface HealthResponse {
   status: string;
@@ -8,17 +11,8 @@ export interface HealthResponse {
 
 export interface SessionResponse {
   token: string;
-  config: { limit: number; windowSeconds: number };
+  config: SessionConfig;
   expiresAt: number;
-}
-
-export interface RateLimitDecision {
-  allowed: boolean;
-  algorithm: 'fixed' | 'sliding';
-  limit: number;
-  remaining: number;
-  resetAt: number;
-  retryAfterMs: number;
 }
 
 function apiUrl(): string {
@@ -52,6 +46,6 @@ export function createRateLimitSession(limit: number, windowSeconds: number) {
   return post<SessionResponse>('/playground/rate-limit/session', { limit, windowSeconds });
 }
 
-export function sendRateLimitRequest(token: string, algorithm: 'fixed' | 'sliding') {
+export function sendRateLimitRequest(token: string, algorithm: Algorithm) {
   return post<RateLimitDecision>('/playground/rate-limit/request', { token, algorithm });
 }
