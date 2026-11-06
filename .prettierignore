@@ -3,3 +3,5 @@ node_modules
 dist
 coverage
 pnpm-lock.yaml
+apps/web/AGENTS.md
+apps/web/next-env.d.ts

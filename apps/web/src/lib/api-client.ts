@@ -40,7 +40,10 @@ async function post<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
 }
 
 export async function getHealth(): Promise<HealthResponse> {
-  const response = await fetch(`${apiUrl()}/health`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+  const response = await fetch(`${apiUrl()}/health`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!response.ok) throw new Error(`API returned HTTP ${response.status}`);
   return response.json() as Promise<HealthResponse>;
 }
