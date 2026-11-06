@@ -25,6 +25,39 @@ export interface RateLimitDecision {
   retryAfterMs: number;
 }
 
+export const sqlInjectionModes = ['unsafe', 'safe'] as const;
+
+export type SqlInjectionMode = (typeof sqlInjectionModes)[number];
+
+export interface SqlInjectionRequest {
+  mode: SqlInjectionMode;
+  username: string;
+}
+
+export interface SqlDemoRow {
+  id: number;
+  username: string;
+  role: string;
+}
+
+export interface SqlInjectionResponse {
+  mode: SqlInjectionMode;
+  rows: SqlDemoRow[];
+  rowCount: number;
+  durationMs: number;
+}
+
+export interface ContactRequest {
+  name: string;
+  email: string;
+  message: string;
+  website?: string;
+}
+
+export interface ContactResponse {
+  status: 'accepted';
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
@@ -96,4 +129,106 @@ export function parseSessionTokenRequest(value: unknown): SessionTokenRequest | 
   const token = parseSessionToken(value.token);
 
   return token === null ? null : { token };
+}
+
+const SQL_USERNAME_PATTERN = /^[\x20-\x7E]+$/;
+const CONTACT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/;
+const CONTACT_MESSAGE_FORBIDDEN_PATTERN = /[\u0000-\u0008\u000B-\u001F\u007F]/;
+
+const contactAllowedKeys = ['name', 'email', 'message', 'website'] as const;
+const contactRequiredKeys = ['name', 'email', 'message'] as const;
+
+function codePointLength(value: string): number {
+  return [...value].length;
+}
+
+function hasOnlyAllowedKeys(
+  value: Record<string, unknown>,
+  allowedKeys: readonly string[],
+): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
+export function parseSqlInjectionRequest(value: unknown): SqlInjectionRequest | null {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ['mode', 'username'])) {
+    return null;
+  }
+
+  const { mode, username } = value;
+
+  if (mode !== 'unsafe' && mode !== 'safe') {
+    return null;
+  }
+
+  if (typeof username !== 'string') {
+    return null;
+  }
+
+  const trimmedUsername = username.trim();
+
+  if (
+    trimmedUsername.length < 1 ||
+    trimmedUsername.length > 64 ||
+    !SQL_USERNAME_PATTERN.test(trimmedUsername) ||
+    trimmedUsername.includes(';')
+  ) {
+    return null;
+  }
+
+  return { mode, username: trimmedUsername };
+}
+
+export function parseContactRequest(value: unknown): ContactRequest | null {
+  if (!isPlainRecord(value) || !hasOnlyAllowedKeys(value, contactAllowedKeys)) {
+    return null;
+  }
+
+  if (!contactRequiredKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key))) {
+    return null;
+  }
+
+  const { name, email, message, website } = value;
+
+  if (typeof name !== 'string' || typeof email !== 'string' || typeof message !== 'string') {
+    return null;
+  }
+
+  const trimmedName = name.trim();
+  const nameLength = codePointLength(trimmedName);
+
+  if (nameLength < 1 || nameLength > 100 || CONTROL_CHARACTER_PATTERN.test(trimmedName)) {
+    return null;
+  }
+
+  const trimmedEmail = email.trim();
+
+  if (
+    trimmedEmail.length > 254 ||
+    CONTROL_CHARACTER_PATTERN.test(trimmedEmail) ||
+    !CONTACT_EMAIL_PATTERN.test(trimmedEmail)
+  ) {
+    return null;
+  }
+
+  const normalizedMessage = message.replace(/\r\n?/g, '\n').trim();
+  const messageLength = codePointLength(normalizedMessage);
+
+  if (
+    messageLength < 1 ||
+    messageLength > 2000 ||
+    CONTACT_MESSAGE_FORBIDDEN_PATTERN.test(normalizedMessage)
+  ) {
+    return null;
+  }
+
+  if (website !== undefined) {
+    if (typeof website !== 'string' || website.length > 200) {
+      return null;
+    }
+
+    return { name: trimmedName, email: trimmedEmail, message: normalizedMessage, website };
+  }
+
+  return { name: trimmedName, email: trimmedEmail, message: normalizedMessage };
 }
