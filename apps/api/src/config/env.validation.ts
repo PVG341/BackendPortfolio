@@ -34,6 +34,27 @@ function readInteger(
   return parsed;
 }
 
+function readPostgresUrl(environment: Record<string, unknown>, key: string): string {
+  const value = readString(environment, key);
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${key} must be a valid URL`);
+  }
+
+  if (
+    !['postgres:', 'postgresql:'].includes(parsed.protocol) ||
+    !parsed.hostname ||
+    parsed.pathname.length <= 1
+  ) {
+    throw new Error(`${key} must be a PostgreSQL URL with host and database`);
+  }
+
+  return value;
+}
+
 function readAbuseNamespace(environment: Record<string, unknown>): string {
   const namespace = readString(environment, 'ABUSE_KEY_NAMESPACE');
 
@@ -95,6 +116,7 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
   const abuseKeyNamespace = readAbuseNamespace(environment);
 
   const abuseKeySecret = readString(environment, 'ABUSE_KEY_SECRET');
+  const demoDatabaseUrl = readPostgresUrl(environment, 'DEMO_DATABASE_URL');
 
   if (abuseKeySecret.length < 32) {
     throw new Error('ABUSE_KEY_SECRET must contain at least 32 characters');
@@ -109,5 +131,6 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
     TRUST_PROXY_HOPS: trustProxyHops,
     ABUSE_KEY_NAMESPACE: abuseKeyNamespace,
     ABUSE_KEY_SECRET: abuseKeySecret,
+    DEMO_DATABASE_URL: demoDatabaseUrl,
   };
 }
