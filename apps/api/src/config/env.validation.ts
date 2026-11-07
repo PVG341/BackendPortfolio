@@ -67,6 +67,20 @@ function readAbuseNamespace(environment: Record<string, unknown>): string {
   return namespace;
 }
 
+function readEmailAddress(
+  environment: Record<string, unknown>,
+  key: string,
+  fallback?: string,
+): string {
+  const value = readString(environment, key, fallback);
+
+  if (value.length > 254 || /[\r\n]/.test(value) || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
+    throw new Error(`${key} must be a valid email address`);
+  }
+
+  return value;
+}
+
 export function validateEnvironment(environment: Record<string, unknown>): Record<string, unknown> {
   const nodeEnv = readString(environment, 'NODE_ENV', 'development');
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
@@ -74,16 +88,20 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
   }
 
   const rawPort = readString(environment, 'PORT', '3001');
+  const resendApiKey = readString(environment, 'RESEND_API_KEY');
 
   if (!/^\d+$/.test(rawPort)) {
     throw new Error('PORT must be an integer');
+  }
+
+  if (resendApiKey.length < 8) {
+    throw new Error('RESEND_API_KEY must be at least 8 characters');
   }
 
   const port = Number(rawPort);
   if (port < 1 || port > 65535) {
     throw new Error('PORT must be between 1 and 65535');
   }
-
   const corsOrigin = readString(environment, 'CORS_ORIGIN', 'http://localhost:3000');
 
   let parsedOrigin: URL;
@@ -111,6 +129,12 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
     throw new Error('REDIS_URL must use redis:// or rediss://');
   }
 
+  const contactToEmail = readEmailAddress(environment, 'CONTACT_TO_EMAIL');
+  const contactFromEmail = readEmailAddress(
+    environment,
+    'CONTACT_FROM_EMAIL',
+    'onboarding@resend.dev',
+  );
   const trustProxyHops = readInteger(environment, 'TRUST_PROXY_HOPS', 0, 10, '0');
 
   const abuseKeyNamespace = readAbuseNamespace(environment);
@@ -132,5 +156,8 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
     ABUSE_KEY_NAMESPACE: abuseKeyNamespace,
     ABUSE_KEY_SECRET: abuseKeySecret,
     DEMO_DATABASE_URL: demoDatabaseUrl,
+    RESEND_API_KEY: resendApiKey,
+    CONTACT_TO_EMAIL: contactToEmail,
+    CONTACT_FROM_EMAIL: contactFromEmail,
   };
 }
