@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { abuseProtectionScript } from '../rate-limit/scripts.js';
 
-export type AbuseScope = 'session' | 'request';
+export type AbuseScope = 'session' | 'request' | 'sql';
 
 interface AbusePolicy {
   ipLimit: number;
@@ -17,16 +17,10 @@ export interface AbuseDecision {
 }
 
 const policies: Record<AbuseScope, AbusePolicy> = {
-  session: {
-    ipLimit: 30,
-    serviceLimit: 300,
-  },
-  request: {
-    ipLimit: 120,
-    serviceLimit: 3000,
-  },
+  session: { ipLimit: 30, serviceLimit: 300 },
+  request: { ipLimit: 120, serviceLimit: 3000 },
+  sql: { ipLimit: 30, serviceLimit: 300 },
 };
-
 const WINDOW_MS = 60_000;
 
 @Injectable()

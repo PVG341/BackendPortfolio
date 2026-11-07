@@ -6,6 +6,10 @@ import { ConfigModule } from '@nestjs/config';
 // import { fileURLToPath } from 'node:url';
 import { validateEnvironment } from './config/env.validation.js';
 import { RateLimitModule } from './modules/rate-limit/rate-limit.module.js';
+import { APP_GUARD } from '@nestjs/core';
+import { AbuseProtectionGuard } from './modules/abuse-protection/abuse-protection.guard.js';
+import { AbuseProtectionModule } from './modules/abuse-protection/abuse-protection.module.js';
+import { SqlPlaygroundModule } from './modules/sql-playground/sql-playground.module.js';
 
 @Module({
   imports: [
@@ -16,8 +20,16 @@ import { RateLimitModule } from './modules/rate-limit/rate-limit.module.js';
     }),
     HealthModule,
     RateLimitModule,
+    AbuseProtectionModule,
+    SqlPlaygroundModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AbuseProtectionGuard,
+    },
+  ],
 })
 export class AppModule {}
