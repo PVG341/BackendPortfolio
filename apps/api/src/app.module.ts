@@ -10,6 +10,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AbuseProtectionGuard } from './modules/abuse-protection/abuse-protection.guard.js';
 import { AbuseProtectionModule } from './modules/abuse-protection/abuse-protection.module.js';
 import { SqlPlaygroundModule } from './modules/sql-playground/sql-playground.module.js';
+import { ContactModule } from './modules/contact/contact.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { SqlPlaygroundModule } from './modules/sql-playground/sql-playground.mod
     RateLimitModule,
     AbuseProtectionModule,
     SqlPlaygroundModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [
