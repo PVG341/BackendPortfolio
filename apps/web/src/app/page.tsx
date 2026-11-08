@@ -1,20 +1,11 @@
+import { ApiStatus } from '@/components/api-status';
+import { ContactForm } from '@/components/contact-form';
 import { RateLimitPlayground } from '@/components/rate-limit-playground';
-import { getHealth } from '@/lib/api-client';
+import { SqlInjectionPlayground } from '@/components/sql-injection-playground';
 
-const skills = [
-  'NestJS / Fastify',
-  'Redis + Lua',
-  'PostgreSQL',
-  'TypeScript',
-  'Docker',
-  'API Security',
-];
+const skills = ['NestJS', 'Fastify', 'TypeScript', 'Redis', 'PostgreSQL', 'Docker', 'API Security'];
 
-export default async function Home() {
-  let health = 'Offline';
-  try {
-    health = (await getHealth()).status === 'ok' ? 'Online' : 'Unhealthy';
-  } catch {}
+export default function Home() {
   return (
     <main>
       <nav>
@@ -25,10 +16,12 @@ export default async function Home() {
           <a href="#about">About</a>
           <a href="#skills">Skills</a>
           <a href="#playground">Playground</a>
+          <a href="#sql">SQL</a>
           <a href="#projects">Projects</a>
           <a href="#contact">Contact</a>
         </div>
       </nav>
+
       <section id="home" className="hero">
         <p className="eyebrow">Backend engineer · API security</p>
         <h1>Build APIs that remain predictable under pressure.</h1>
@@ -36,10 +29,9 @@ export default async function Home() {
           I design backend systems with explicit contracts, observable behavior, secure boundaries,
           and failure modes that users can understand.
         </p>
-        <div className="health">
-          <span className={health === 'Online' ? 'dot online' : 'dot'} /> API status: {health}
-        </div>
+        <ApiStatus />
       </section>
+
       <section id="about">
         <p className="eyebrow">About</p>
         <h2>Engineering for the path that fails.</h2>
@@ -48,6 +40,7 @@ export default async function Home() {
           database safety, and practical observability.
         </p>
       </section>
+
       <section id="skills">
         <p className="eyebrow">Stack</p>
         <h2>Tools I use deliberately.</h2>
@@ -57,30 +50,29 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
       <RateLimitPlayground />
-      <section id="sql" className="panel">
-        <p className="eyebrow">Coming next</p>
-        <h2>SQL injection sandbox</h2>
-        <p className="muted">
-          A public, isolated PostgreSQL demonstration comparing concatenated SQL with parameterized
-          queries. It uses fictional data and a read-only database role.
-        </p>
-      </section>
+      <SqlInjectionPlayground />
+
       <section id="projects">
         <p className="eyebrow">Projects</p>
         <h2>Selected backend work.</h2>
         <div className="project">
           <strong>Interactive Backend Portfolio</strong>
-          <span> NestJS · Redis · API security playground</span>
+          <span>NestJS · Redis · PostgreSQL · API security playground</span>
+          <a href="https://github.com/PVG341/BackendPortfolio" rel="noreferrer">
+            Source
+          </a>
         </div>
       </section>
+
       <section id="contact" className="panel">
         <p className="eyebrow">Contact</p>
         <h2>Let&apos;s discuss backend problems.</h2>
         <p className="muted">
-          The protected contact form and Resend delivery integration are the next module in this
-          portfolio.
+          This form is rate limited and protected by a honeypot. Messages are delivered by email.
         </p>
+        <ContactForm />
       </section>
     </main>
   );
