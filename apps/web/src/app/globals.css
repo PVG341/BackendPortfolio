@@ -174,3 +174,67 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.form-grid {
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+  margin-top: 20px;
+}
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field label {
+  font: 600 0.8rem var(--font-geist-mono);
+  color: var(--muted);
+}
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #07090d;
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+}
+.field input:focus,
+.field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.error {
+  color: var(--danger);
+  font: 500 0.85rem var(--font-geist-mono);
+}
+.success {
+  color: #5ee69a;
+  font: 500 0.85rem var(--font-geist-mono);
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 0.8rem var(--font-geist-mono);
+}
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 6px;
+  text-align: left;
+}
+.data-table th {
+  color: var(--muted);
+}
+.health button {
+  margin-left: 10px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
