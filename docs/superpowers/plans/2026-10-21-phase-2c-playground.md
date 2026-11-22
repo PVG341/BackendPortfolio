@@ -40,11 +40,11 @@
 - Consumes: existing `GET /api/v1/health` and rate-limit API contracts.
 - Produces: a responsive page and client functions returning status, headers, JSON, and duration.
 
-- [ ] Write a failing unit test for conversion of a `Response` into a typed API result including `Retry-After` and `X-RateLimit-*` headers.
-- [ ] Run the focused test and verify it fails because the client result helper does not exist.
-- [ ] Implement the typed browser API client and the minimal technical portfolio layout.
-- [ ] Run the focused test and `pnpm --filter @portfolio/web build`.
-- [ ] Commit `feat(web): add portfolio shell and rate-limit playground`.
+- [x] Write a failing unit test for conversion of a `Response` into a typed API result including `Retry-After` and `X-RateLimit-*` headers.
+- [x] Run the focused test and verify it fails because the client result helper does not exist.
+- [x] Implement the typed browser API client and the minimal technical portfolio layout.
+- [x] Run the focused test and `pnpm --filter @portfolio/web build`.
+- [x] Commit `feat(web): add portfolio shell and rate-limit playground`.
 
 ### Task 2: SQL demo infrastructure and safe API boundary
 
@@ -57,11 +57,11 @@
 
 - Produces: `POST /api/v1/playground/sql-injection/query` accepting `{ mode, username }` and returning normalized demo rows.
 
-- [ ] Write e2e tests for parameterized query resistance and for unsafe query behavior against seeded fake rows.
-- [ ] Run tests and verify route absence fails.
-- [ ] Implement a SELECT-only role, read-only transactions, statement timeout, seed data, strict parser, and normalized error response.
-- [ ] Run SQL e2e tests with PostgreSQL available, then API build/lint/test.
-- [ ] Commit `feat(api): add isolated sql injection sandbox`.
+- [x] Write e2e tests for parameterized query resistance and for unsafe query behavior against seeded fake rows.
+- [x] Run tests and verify route absence fails.
+- [x] Implement a SELECT-only role, read-only transactions, statement timeout, seed data, strict parser, and normalized error response.
+- [x] Run SQL e2e tests with PostgreSQL available, then API build/lint/test.
+- [x] Commit `feat(api): add isolated sql injection sandbox`.
 
 ### Task 3: Contact API and Resend delivery boundary
 
@@ -74,11 +74,11 @@
 
 - Produces: `POST /api/v1/contact` accepting `{ name, email, message, website? }` and returning `202` on accepted contact requests.
 
-- [ ] Write failing tests for valid contact, invalid payload, honeypot suppression, and provider failure normalization.
-- [ ] Verify the tests fail for missing route.
-- [ ] Implement strict validation, Redis quota, injectable email sender, Resend adapter, plain-text email, and generic failures.
-- [ ] Run focused tests then API build/lint/test.
-- [ ] Commit `feat(api): add protected contact email endpoint`.
+- [x] Write failing tests for valid contact, invalid payload, honeypot suppression, and provider failure normalization.
+- [x] Verify the tests fail for missing route.
+- [x] Implement strict validation, Redis quota, injectable email sender, Resend adapter, plain-text email, and generic failures.
+- [x] Run focused tests then API build/lint/test.
+- [x] Commit `feat(api): add protected contact email endpoint`.
 
 ### Task 4: Contact UI, integration, and documentation
 
@@ -92,10 +92,10 @@
 - Consumes: Tasks 1-3 API client interfaces.
 - Produces: public contact form and documented local/deployment setup.
 
-- [ ] Write a failing frontend test for disabled submit state and successful generic acknowledgement.
-- [ ] Implement contact form and SQL playground panels without exposing secrets or provider errors.
-- [ ] Verify web build and full monorepo checks.
-- [ ] Commit `feat(web): integrate security playground and contact form`.
+- [x] Write a failing frontend test for disabled submit state and successful generic acknowledgement.
+- [x] Implement contact form and SQL playground panels without exposing secrets or provider errors.
+- [x] Verify web build and full monorepo checks.
+- [x] Commit `feat(web): integrate security playground and contact form`.
 
 ### Task 5: Verification and repository review
 
@@ -103,7 +103,7 @@
 
 - Modify: only files required to correct verified findings.
 
-- [ ] Run `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`, and `pnpm format:check`.
-- [ ] Review deployment variables and ensure all secrets are absent from Git.
-- [ ] Review the branch diff for public SQL exposure, CORS header access, and contact-recipient control.
-- [ ] Commit any test-proven corrective changes.
+- [x] Run `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`, and `pnpm format:check`.
+- [x] Review deployment variables and ensure all secrets are absent from Git.
+- [x] Review the branch diff for public SQL exposure, CORS header access, and contact-recipient control.
+- [x] Complete public cloud hosting verification (Vercel & Render) and publish public URL after end-to-end verification.
