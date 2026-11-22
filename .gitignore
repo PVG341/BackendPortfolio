@@ -14,3 +14,4 @@ test-results/
 reset-session.json
 session.json
 .worktrees/
+graphify-out/

@@ -25,15 +25,21 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       NODE_ENV: production
-      PORT: 4000
+      PORT: 3001
       REDIS_URL: redis://redis:6379
       CORS_ORIGIN: http://localhost:3000
       TRUST_PROXY_HOPS: 0
       ABUSE_KEY_NAMESPACE: portfolio
-      ABUSE_KEY_SECRET: ${ABUSE_KEY_SECRET:?Set ABUSE_KEY_SECRET in the root .env file}
-    ports: ['127.0.0.1:4000:4000']
+      ABUSE_KEY_SECRET: ${ABUSE_KEY_SECRET:?Set ABUSE_KEY_SECRET in root .env}
+      DEMO_DATABASE_URL: postgresql://portfolio_demo_reader:${POSTGRES_DEMO_READER_PASSWORD:?Set POSTGRES_DEMO_READER_PASSWORD in root .env}@postgres:5432/portfolio_demo
+      RESEND_API_KEY: ${RESEND_API_KEY:?Set RESEND_API_KEY in root .env}
+      CONTACT_TO_EMAIL: ${CONTACT_TO_EMAIL:?Set CONTACT_TO_EMAIL in root .env}
+      CONTACT_FROM_EMAIL: ${CONTACT_FROM_EMAIL:-onboarding@resend.dev}
+    ports: ['127.0.0.1:3001:3001']
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test:
@@ -41,7 +47,7 @@ services:
           CMD,
           node,
           -e,
-          "fetch('http://127.0.0.1:4000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
@@ -51,7 +57,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:4000
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
     ports: ['127.0.0.1:3000:3000']
     depends_on:
       api: { condition: service_healthy }
@@ -66,3 +72,20 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: portfolio_demo
+      POSTGRES_USER: portfolio_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      POSTGRES_DEMO_READER_PASSWORD: ${POSTGRES_DEMO_READER_PASSWORD:?Set POSTGRES_DEMO_READER_PASSWORD in root .env}
+    volumes:
+      - ./docker/sql:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U portfolio_owner -d portfolio_demo']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  postgres-data:

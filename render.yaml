@@ -7,7 +7,7 @@ services:
     region: singapore
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    healthCheckPath: /api/health/ready
+    healthCheckPath: /api/v1/health/ready
     autoDeployTrigger: checksPass
     envVars:
       - key: NODE_ENV
@@ -27,6 +27,14 @@ services:
           name: backend-portfolio-redis
           type: keyvalue
           property: connectionString
+      - key: DEMO_DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CONTACT_TO_EMAIL
+        sync: false
+      - key: CONTACT_FROM_EMAIL
+        value: onboarding@resend.dev
   - type: keyvalue
     name: backend-portfolio-redis
     plan: free
