@@ -1,39 +1,67 @@
-# Kiến trúc MVP
+# Kiến trúc hệ thống
 
 ```mermaid
 flowchart LR
-  Browser[Browser / Next.js UI] -->|HTTP request| API[NestJS API]
-  API -->|TIME + atomic Lua| Redis[(Redis)]
-  Redis -->|decision + TTL| API
-  API -->|200 / 429 / 503| Browser
+  Browser[Next.js UI :3000] -->|/api/v1 JSON| API[NestJS + Fastify :3001]
+  API -->|Lua + TIME| Redis[(Redis 7)]
+  API -->|read-only SQL| PG[(PostgreSQL 17 demo)]
+  API -->|HTTPS| Resend[Resend API]
 ```
 
-Next.js chịu trách nhiệm trình bày. NestJS validate payload, kiểm tra quota bảo vệ dịch vụ và quyết định HTTP status. Redis giữ metadata phiên và state thuật toán; không có database quan hệ trong MVP.
+Next.js đóng vai trò trình diễn giao diện, hiển thị biểu đồ và gọi API thông qua contract dùng chung. NestJS (chạy trên Fastify) chịu trách nhiệm validate payload bằng strict parser, kiểm tra quota bảo vệ chống lạm dụng và điều phối xử lý với các dịch vụ phụ thuộc.
 
 ## Session
 
-Token 256-bit ngẫu nhiên từ server, dạng 64 ký tự hex; token là bearer capability của phiên demo, không phải authentication người dùng. Metadata có TTL 900 giây. Client không truyền Redis key hoặc thời gian. Prefix `portfolio:{token}:...` giữ metadata và state trên cùng hash slot.
+- Token 256-bit ngẫu nhiên từ server (64 ký tự hex); token là bearer capability tạm thời của phiên demo, không phải thông tin định danh người dùng.
+- Metadata có TTL 900 giây (15 phút).
+- Prefix `portfolio:{token}:...` đảm bảo metadata và state của cả hai thuật toán nằm cùng Redis hash slot.
+- Mỗi phiên có hai quota độc lập: `fixed` và `sliding`. Lệnh Reset xóa metadata và cả hai key bằng một lệnh `DEL`; request đến sau khi reset sẽ nhận `410 Gone`.
 
-Mỗi phiên có hai quota độc lập: `fixed` và `sliding`. Reset xóa metadata và cả hai key bằng một lệnh DEL; request đến sau reset nhận 410. Config chỉ được chọn khi tạo phiên; thay đổi config tạo phiên mới.
+## Thuật toán Rate Limiting
 
-## Fixed Window
+### Fixed Window
 
-`bucket = floor(redisTimeMs / windowMs)`. Một hash giữ bucket và accepted count. Khi đổi bucket, count bắt đầu từ 0. TTL kết thúc ở `(bucket + 1) * windowMs`. Request vượt limit không tăng count. O(1) state; có thể nhận hai burst gần nhau ở hai phía boundary.
+- `bucket = floor(redisTimeMs / windowMs)`.
+- Một Redis hash lưu giữ bucket ID và accepted count. Khi đổi sang bucket mới, count reset về 0.
+- TTL của key kết thúc tại mốc `(bucket + 1) * windowMs`. Request bị từ chối không tăng bộ đếm count. Trạng thái O(1) bộ nhớ; có thể gặp hiện tượng burst gấp đôi quota tại ranh giới hai bucket liên tiếp.
 
-## Sliding Window Log
+### Sliding Window Log
 
-Sorted set lưu timestamp của request được nhận, member là ID ngẫu nhiên riêng của mỗi request. Loại bỏ các timestamp `<= now - window`; check ZCARD; nếu còn quota thì ZADD và PEXPIRE. Khi full, Retry-After dựa vào request cũ nhất. Check/update chạy trong một Lua script, tránh race condition.
+- Sorted set lưu timestamp (mili-giây) của các request được chấp nhận, member là UUID ngẫu nhiên duy nhất cho mỗi request.
+- Thuật toán loại bỏ các timestamp cũ hơn `now - windowMs` bằng `ZREMRANGEBYSCORE`, đếm số lượng qua `ZCARD`. Nếu còn quota thì `ZADD` và cập nhật `PEXPIRE`.
+- Nếu hết quota, `Retry-After` được tính dựa trên độ tuổi của request cũ nhất trong cửa sổ. Toàn bộ logic diễn ra trong một Redis Lua script nguyên tử để triệt tiêu race condition.
+- `resetAt` là thời điểm sớm nhất một lượt quota sẽ hồi phục, không phải lúc toàn bộ sorted set rỗng.
 
-`resetAt` là mốc sớm nhất quota có thể hồi phục, không phải lúc toàn bộ sorted set rỗng. `retryAfterMs` bằng 0 khi được nhận và thời gian cần đợi khi bị chặn.
+## SQL Sandbox Boundary
 
-## Failures
+- Database PostgreSQL độc lập chỉ chứa bảng `demo.users` với các bản ghi giả lập.
+- Kết nối thông qua role `portfolio_demo_reader` bị tước quyền ghi (`SELECT` only), `default_transaction_read_only = on`.
+- Khi thực thi query, API mở transaction rõ ràng `BEGIN READ ONLY` và áp dụng `SET LOCAL statement_timeout = 250`.
+- Connection pool cực nhỏ (`max: 2`), ngắt kết nối nhanh khi có dấu hiệu quá tải.
+- Bộ lọc đầu vào loại bỏ ký tự ngoài tập printable ASCII và cấm tuyệt đối dấu chấm phẩy `;`.
+- Lỗi từ Postgres được chuẩn hóa thành mã lỗi HTTP chung chung; không lộ cấu trúc bảng hay thông báo lỗi SQL ra ngoài.
 
-Redis connection timeout 1.5 giây, command timeout 2 giây; không xếp hàng request vô hạn khi offline. API trả 503 khi dependency lỗi, không thay Redis bằng memory. Liveness kiểm tra process; readiness cần PING Redis.
+## Contact Boundary
 
-Frontend retry GET readiness bằng backoff trong tối đa 90 giây; POST không retry tự động. Network error khi gửi POST có thể xảy ra sau khi backend đã nhận request, nên UI không tự replay. Dừng burst không hoàn tác request đã đến server. Lịch sử tối đa 200, chart hiển thị 40 request gần nhất.
+- Chỉ nhận JSON có cấu trúc định sẵn (`name`, `email`, `message`, `website`).
+- Field `website` là honeypot ẩn trên giao diện; nếu có giá trị (do bot điền tự động), API trả về `202 accepted` nhưng không chuyển tiếp tới email provider.
+- Người nhận email luôn cố định ở server (`CONTACT_TO_EMAIL`); payload từ client không có quyền chỉ định địa chỉ nhận.
+- Nội dung email định dạng plain-text thuần túy; email của khách được gán vào header `Reply-To`.
+- Lỗi kết nối tới Resend được bọc thành lỗi `503 Service Unavailable` chung chung, không trả về chi tiết từ nhà cung cấp.
 
-## Kiểm thử
+## Xử lý sự cố (Failure Handling)
 
-Integration tests chạy trên Redis thật: concurrency, TTL, session isolation, reset và dependency outage. Boundary tests thay đồng hồ **chỉ trong bản sao script tại test**, production luôn gọi Redis TIME và không có clock override endpoint.
+- **Redis**: Connection timeout 1.5 giây, command timeout 2 giây; tắt chế độ xếp hàng offline vô hạn. Khi Redis mất kết nối, API trả về `503`, `/api/v1/health/ready` trả về `503`. Không có fallback lưu tạm vào RAM.
+- **Postgres**: Lỗi kết nối database chỉ làm endpoint `/playground/sql-injection/query` trả về `503`. Trạng thái `/health/ready` của dịch vụ chỉ phụ thuộc vào Redis.
+- **Resend**: Lỗi kết nối hoặc lỗi xác thực từ Resend trả về `503` cho endpoint `/contact`.
+- **Cold start UX**: Frontend chờ backend và thăm dò `/api/v1/health/ready` với exponential backoff tối đa 90 giây; **tuyệt đối không tự động retry request POST**.
 
-Tham khảo: [Redis rate limiter](https://redis.io/docs/latest/develop/use-cases/rate-limiter/).
+## Trade-offs và Quyết định Thiết kế
+
+| Thành phần             | Lợi thế                                                                                    | Hạn chế / Đánh đổi                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **Fixed Window**       | O(1) memory, thực thi cực nhanh trên Redis hash.                                           | Có thể chịu burst gấp đôi quota tại ranh giới chuyển giao 2 window.                                               |
+| **Sliding Window Log** | Cửa sổ mượt mà, tính toán chính xác 100% theo thời gian thực.                              | Tốn O(limit) bộ nhớ cho sorted set; chi phí CPU cao hơn khi cleanup log.                                          |
+| **Redis TIME**         | Đồng bộ thời gian nguyên tử giữa mọi API replica; không phụ thuộc clock máy chủ.           | Mọi thao tác kiểm tra rate limit đều phải round-trip tới Redis.                                                   |
+| **SQL Unsafe Mode**    | Cho phép người dùng quan sát trực quan sự khác biệt giữa nối chuỗi và parameterized query. | Là một attack surface có chủ đích, đòi hỏi nhiều tầng cô lập nghiêm ngặt (role, read-only, timeout, input bound). |
+| **No Memory Fallback** | Đảm bảo tính trung thực tuyệt đối của demo phân tán; không giấu lỗi khi hạ tầng gặp sự cố. | API từ chối phục vụ ngay lập tức khi Redis gặp trục trặc.                                                         |

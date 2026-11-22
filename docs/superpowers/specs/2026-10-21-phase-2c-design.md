@@ -4,6 +4,8 @@
 
 Build a minimal, technical backend portfolio that demonstrates API rate limiting, safe SQL query construction, and secure contact handling.
 
+Trạng thái: Rate-limit, SQL sandbox, contact API và frontend đã hoàn tất kiểm thử local và deploy public thành công trên Render và Vercel.
+
 ## User-visible page
 
 One responsive Next.js page has Home, About, Skills, Playground, Projects, and Contact sections. The visual language uses a dark surface, restrained borders, monospace data display, and clear success/error colors.
