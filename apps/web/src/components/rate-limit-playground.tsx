@@ -12,6 +12,7 @@ import {
   type SessionResponse,
 } from '@/lib/api-client';
 
+import { readErrorMessage } from '@/lib/api-response';
 type Algorithm = 'fixed' | 'sliding';
 type BurstSize = 1 | 5 | 10 | 20;
 
@@ -96,22 +97,10 @@ export function RateLimitPlayground() {
         }
 
         if (result.status === 429) {
-          if (readScope(result.body) === 'service') {
-            setMessage('Service abuse quota exceeded. Burst stopped.');
-            stopRef.current = true;
-            break;
-          }
-
-          if (result.rateLimit.retryAfterSeconds !== null) {
-            setMessage(`Demo quota exceeded. Retry after ${result.rateLimit.retryAfterSeconds}s.`);
-          } else {
-            setMessage('Demo quota exceeded.');
-          }
+          setMessage('Service quota exceeded. Try again shortly.');
+        } else {
+          setMessage(readErrorMessage(result.body, 'Could not create a session.'));
         }
-      }
-
-      if (stopRef.current && message !== 'Burst stopped.') {
-        // The stop state is handled by the button or the 429/410 branches.
       }
     } catch {
       setMessage('Request failed. Check the API connection.');
@@ -271,7 +260,7 @@ export function RateLimitPlayground() {
           </p>
 
           <p className="muted">
-            Limit: {limit} requests / {windowSeconds} seconds
+            Limit: {session.config.limit} requests / {session.config.windowSeconds} seconds
           </p>
         </div>
       )}

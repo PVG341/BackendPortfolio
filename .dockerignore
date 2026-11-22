@@ -9,3 +9,5 @@
 **/*.log
 **/test-results
 **/playwright-report
+graphify-out
+

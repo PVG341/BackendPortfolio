@@ -149,7 +149,7 @@ button:disabled {
 }
 .terminal div {
   display: grid;
-  grid-template-columns: 45px 80px 80px 1fr 1fr;
+  grid-template-columns: 45px 80px 80px 1fr 1fr 100px;
   gap: 10px;
   padding: 8px 0;
   border-bottom: 1px solid #1d2630;
@@ -161,17 +161,18 @@ button:disabled {
   color: var(--danger);
 }
 @media (max-width: 700px) {
+  nav {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
   nav div {
-    display: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
-  section {
-    padding: 54px 0;
-  }
-  .panel {
-    padding: 22px;
-  }
-  .terminal div {
-    grid-template-columns: 1fr 1fr;
+  nav a {
+    margin-left: 0;
   }
 }
 

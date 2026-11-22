@@ -1,0 +1,87 @@
+﻿name: ci
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+      CORS_ORIGIN: http://localhost:3000
+      REDIS_URL: redis://127.0.0.1:6379
+      TRUST_PROXY_HOPS: '0'
+      ABUSE_KEY_NAMESPACE: portfolio-ci
+      ABUSE_KEY_SECRET: ci-abuse-secret-at-least-32-characters
+      DEMO_DATABASE_URL: postgresql://portfolio_demo_reader:ci-reader-password@127.0.0.1:5433/portfolio_demo
+      RESEND_API_KEY: re_ci_placeholder
+      CONTACT_TO_EMAIL: ci@example.com
+      CONTACT_FROM_EMAIL: onboarding@resend.dev
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      POSTGRES_PASSWORD: ci-owner-password
+      POSTGRES_DEMO_READER_PASSWORD: ci-reader-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start Redis and Postgres
+        run: docker compose -f compose.redis.yaml up -d --wait
+
+      - name: Wait for demo schema
+        run: |
+          for attempt in {1..30}; do
+            docker compose -f compose.redis.yaml exec -T postgres \
+              psql -U portfolio_owner -d portfolio_demo \
+              -c 'select 1 from demo.users limit 1' && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - run: pnpm build:contracts
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm test:e2e
+
+      - name: Stop infrastructure
+        if: always()
+        run: docker compose -f compose.redis.yaml down -v
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker build -f apps/api/Dockerfile -t portfolio-api .
+          docker build -f apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1 \
+            -t portfolio-web .
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
