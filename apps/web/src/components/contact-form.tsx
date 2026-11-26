@@ -3,10 +3,14 @@
 import { useState, type FormEvent } from 'react';
 import { readErrorMessage } from '@/lib/api-response';
 import { sendContact } from '@/lib/api-client';
+import { useLanguage } from '@/components/language-context';
 
 type Status = 'idle' | 'sending' | 'accepted' | 'error';
 
 export function ContactForm() {
+  const { content } = useLanguage();
+  const t = content.ui.contactForm;
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -35,21 +39,21 @@ export function ContactForm() {
 
       if (response.status === 429) {
         const seconds = response.rateLimit.retryAfterSeconds ?? 60;
-        setError(`Too many messages. Try again in ${seconds}s.`);
+        setError(t.tooMany(seconds));
         return;
       }
 
-      setError(readErrorMessage(response.body, 'The message could not be sent.'));
+      setError(readErrorMessage(response.body, t.failedFallback));
     } catch {
       setStatus('error');
-      setError('Contact is unavailable. Check the API connection.');
+      setError(t.unavailable);
     }
   }
 
   return (
     <form onSubmit={submit} className="form-grid">
       <div className="field">
-        <label htmlFor="contact-name">Name</label>
+        <label htmlFor="contact-name">{t.name}</label>
         <input
           id="contact-name"
           value={name}
@@ -61,7 +65,7 @@ export function ContactForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="contact-email">Email</label>
+        <label htmlFor="contact-email">{t.email}</label>
         <input
           id="contact-email"
           type="email"
@@ -74,7 +78,7 @@ export function ContactForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="contact-message">Message</label>
+        <label htmlFor="contact-message">{t.message}</label>
         <textarea
           id="contact-message"
           value={message}
@@ -87,7 +91,7 @@ export function ContactForm() {
       </div>
 
       <div className="honeypot" aria-hidden="true">
-        <label htmlFor="contact-website">Website</label>
+        <label htmlFor="contact-website">{t.website}</label>
         <input
           id="contact-website"
           tabIndex={-1}
@@ -98,12 +102,12 @@ export function ContactForm() {
       </div>
 
       <button type="submit" disabled={status === 'sending'}>
-        {status === 'sending' ? 'Sending…' : 'Send message'}
+        {status === 'sending' ? t.sending : t.submit}
       </button>
 
       {status === 'accepted' ? (
         <p className="success" role="status">
-          Message received. Thank you.
+          {t.accepted}
         </p>
       ) : null}
 

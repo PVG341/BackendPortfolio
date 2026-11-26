@@ -4,15 +4,12 @@ import { useState, type FormEvent } from 'react';
 import type { SqlInjectionMode, SqlInjectionResponse } from '@portfolio/contracts';
 import { readErrorMessage } from '@/lib/api-response';
 import { runSqlInjection } from '@/lib/api-client';
-
-const presets = [
-  { label: 'OR 1=1', value: "' OR '1'='1' --" },
-  { label: 'Comment', value: "admin' --" },
-  { label: 'Drop attempt', value: "'; DROP TABLE demo.users; --" },
-  { label: 'Normal user', value: 'alice' },
-];
+import { useLanguage } from '@/components/language-context';
 
 export function SqlInjectionPlayground() {
+  const { content } = useLanguage();
+  const t = content.ui.sqlPlayground;
+
   const [mode, setMode] = useState<SqlInjectionMode>('unsafe');
   const [username, setUsername] = useState('alice');
   const [result, setResult] = useState<SqlInjectionResponse | null>(null);
@@ -31,10 +28,10 @@ export function SqlInjectionPlayground() {
       if (response.ok) {
         setResult(response.body);
       } else {
-        setError(readErrorMessage(response.body, 'The SQL sandbox rejected the request.'));
+        setError(readErrorMessage(response.body, t.rejectedFallback));
       }
     } catch {
-      setError('The SQL sandbox is unavailable. Check the API connection.');
+      setError(t.unavailable);
     } finally {
       setBusy(false);
     }
@@ -43,12 +40,9 @@ export function SqlInjectionPlayground() {
   return (
     <section id="sql" className="panel">
       <div>
-        <p className="eyebrow">Isolated database demo</p>
-        <h2>SQL injection sandbox</h2>
-        <p className="muted">
-          Compare a deliberately unsafe concatenated query with a parameterized query. The demo
-          database contains fictional data, uses a read-only role, and never accepts arbitrary SQL.
-        </p>
+        <p className="eyebrow">{t.eyebrow}</p>
+        <h2>{t.heading}</h2>
+        <p className="muted">{t.description}</p>
       </div>
 
       <form onSubmit={submit} className="space-y-4">
@@ -57,10 +51,10 @@ export function SqlInjectionPlayground() {
             value={mode}
             onChange={(event) => setMode(event.target.value as SqlInjectionMode)}
             disabled={busy}
-            aria-label="SQL mode"
+            aria-label={t.modeAria}
           >
-            <option value="unsafe">Unsafe: string concatenation</option>
-            <option value="safe">Safe: parameterized $1</option>
+            <option value="unsafe">{t.unsafeOption}</option>
+            <option value="safe">{t.safeOption}</option>
           </select>
 
           <input
@@ -68,19 +62,19 @@ export function SqlInjectionPlayground() {
             onChange={(event) => setUsername(event.target.value)}
             maxLength={64}
             disabled={busy}
-            aria-label="Username or payload"
-            placeholder="Username or payload"
+            aria-label={t.inputPlaceholder}
+            placeholder={t.inputPlaceholder}
           />
 
           <button type="submit" disabled={busy || username.trim().length === 0}>
-            Run query
+            {t.runQuery}
           </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {presets.map((preset) => (
+          {t.presets.map((preset) => (
             <button
-              key={preset.label}
+              key={preset.value}
               type="button"
               className="secondary"
               disabled={busy}
@@ -106,15 +100,15 @@ export function SqlInjectionPlayground() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Role</th>
+                <th>{t.colId}</th>
+                <th>{t.colUsername}</th>
+                <th>{t.colRole}</th>
               </tr>
             </thead>
             <tbody>
               {result.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={3}>No rows matched.</td>
+                  <td colSpan={3}>{t.noRows}</td>
                 </tr>
               ) : (
                 result.rows.map((row) => (

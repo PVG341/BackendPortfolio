@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'PVG — Backend Engineer',
+  title: 'Hồ Sỹ Phúc — Backend & Cloud Software Engineer',
   description:
-    'Backend engineering portfolio focused on API contracts, Redis rate limiting, SQL safety, and API security.',
+    'Personal portfolio of Hồ Sỹ Phúc — Software Engineering student at Văn Lang University specializing in Backend APIs (Node.js, NestJS, Redis, PostgreSQL), AWS Cloud, WordPress/Elementor, and AI Agent workflows.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

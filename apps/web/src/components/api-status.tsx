@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getReadiness } from '@/lib/api-client';
+import { useLanguage } from '@/components/language-context';
 
 type Status = 'checking' | 'ready' | 'offline';
 
 const MAX_WAIT_MS = 90_000;
 
 export function ApiStatus() {
+  const { content } = useLanguage();
+  const t = content.ui.apiStatus;
   const [status, setStatus] = useState<Status>('checking');
   const [attempt, setAttempt] = useState(0);
 
@@ -52,13 +55,15 @@ export function ApiStatus() {
     setAttempt((value) => value + 1);
   }, []);
 
+  const statusText = status === 'ready' ? t.ready : status === 'offline' ? t.offline : t.checking;
+
   return (
     <div className="health">
       <span className={status === 'ready' ? 'dot online' : 'dot'} />
-      API status: {status}
+      {t.label}: {statusText}
       {status === 'offline' ? (
         <button type="button" className="secondary" onClick={retry}>
-          Retry
+          {t.retry}
         </button>
       ) : null}
     </div>
