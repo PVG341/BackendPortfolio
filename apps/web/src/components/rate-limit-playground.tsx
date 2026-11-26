@@ -1,9 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-
 import type { ApiResponse } from '@/lib/api-response';
-
 import {
   createRateLimitSession,
   resetRateLimitSession,
@@ -11,8 +9,9 @@ import {
   type RateLimitDecision,
   type SessionResponse,
 } from '@/lib/api-client';
-
 import { readErrorMessage } from '@/lib/api-response';
+import { useLanguage } from '@/components/language-context';
+
 type Algorithm = 'fixed' | 'sliding';
 type BurstSize = 1 | 5 | 10 | 20;
 
@@ -20,17 +19,17 @@ const HISTORY_LIMIT = 200;
 const DISPLAY_LIMIT = 40;
 
 export function RateLimitPlayground() {
-  const [algorithm, setAlgorithm] = useState<Algorithm>('sliding');
+  const { content } = useLanguage();
+  const t = content.ui.rateLimit;
 
+  const [algorithm, setAlgorithm] = useState<Algorithm>('sliding');
   const [limit, setLimit] = useState(5);
   const [windowSeconds, setWindowSeconds] = useState(10);
   const [burstSize, setBurstSize] = useState<BurstSize>(10);
 
   const [session, setSession] = useState<SessionResponse | null>(null);
-
   const [responses, setResponses] = useState<ApiResponse<RateLimitDecision>[]>([]);
-
-  const [message, setMessage] = useState('Create a session to begin.');
+  const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -39,31 +38,26 @@ export function RateLimitPlayground() {
   function readScope(body: unknown): string | undefined {
     if (typeof body === 'object' && body !== null && 'scope' in body) {
       const scope = (body as { scope?: unknown }).scope;
-
       return typeof scope === 'string' ? scope : undefined;
     }
-
     return undefined;
   }
 
   async function createSession() {
     if (busy) return;
-
     setBusy(true);
 
     try {
       const result = await createRateLimitSession(limit, windowSeconds);
-
       if (!result.ok) {
         throw new Error('Session creation failed');
       }
 
       setSession(result.body);
       setResponses([]);
-
-      setMessage(`Session created: ${limit} requests per ${windowSeconds} seconds.`);
+      setMessage(t.sessionCreated(limit, windowSeconds));
     } catch {
-      setMessage('API is unavailable. Start the backend and Redis, then retry.');
+      setMessage(t.apiUnavailable);
     } finally {
       setBusy(false);
     }
@@ -78,32 +72,29 @@ export function RateLimitPlayground() {
 
     try {
       for (let index = 0; index < count; index += 1) {
-        // Stop before starting the next request.
         if (stopRef.current) {
-          setMessage('Burst stopped.');
+          setMessage(t.burstStopped);
           break;
         }
 
-        // Send exactly one request. No automatic retry.
         const result = await sendRateLimitRequest(session.token, algorithm);
-
         setResponses((current) => [result, ...current].slice(0, HISTORY_LIMIT));
 
         if (result.status === 410) {
           stopRef.current = true;
           setSession(null);
-          setMessage('Session expired or was reset. Create a new session.');
+          setMessage(t.sessionExpired);
           break;
         }
 
         if (result.status === 429) {
-          setMessage('Service quota exceeded. Try again shortly.');
+          setMessage(t.serviceQuotaExceeded);
         } else {
-          setMessage(readErrorMessage(result.body, 'Could not create a session.'));
+          setMessage(readErrorMessage(result.body, t.createFailedFallback));
         }
       }
     } catch {
-      setMessage('Request failed. Check the API connection.');
+      setMessage(t.requestFailed);
     } finally {
       setBusy(false);
       setIsSending(false);
@@ -112,27 +103,25 @@ export function RateLimitPlayground() {
 
   function stopRequests() {
     stopRef.current = true;
-    setMessage('Stopping burst after the current request...');
+    setMessage(t.stoppingBurst);
   }
 
   async function resetSession() {
     if (!session || busy) return;
-
     stopRef.current = true;
     setBusy(true);
 
     try {
       const result = await resetRateLimitSession(session.token);
-
       if (!result.ok) {
         throw new Error('Reset failed');
       }
 
       setSession(null);
       setResponses([]);
-      setMessage('Session reset. Create a new session.');
+      setMessage(t.sessionReset);
     } catch {
-      setMessage('Could not reset the session.');
+      setMessage(t.resetFailed);
     } finally {
       setBusy(false);
     }
@@ -151,21 +140,15 @@ export function RateLimitPlayground() {
   return (
     <section id="playground" className="panel space-y-6">
       <div>
-        <p className="eyebrow">Live security demo</p>
-
-        <h2>Rate-limiting playground</h2>
-
-        <p className="muted">
-          Observe server-issued session tokens, atomic Redis decisions, quota headers, and HTTP 429
-          responses.
-        </p>
+        <p className="eyebrow">{t.eyebrow}</p>
+        <h2>{t.heading}</h2>
+        <p className="muted">{t.description}</p>
       </div>
 
       {/* Session configuration */}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-2">
-          <span>Request limit (1–20)</span>
-
+          <span>{t.limitLabel}</span>
           <input
             type="number"
             min={1}
@@ -177,8 +160,7 @@ export function RateLimitPlayground() {
         </label>
 
         <label className="space-y-2">
-          <span>Window (1–60 seconds)</span>
-
+          <span>{t.windowLabel}</span>
           <input
             type="number"
             min={1}
@@ -193,30 +175,28 @@ export function RateLimitPlayground() {
       {/* Request configuration */}
       <div className="flex flex-wrap gap-3">
         <label className="flex items-center gap-2">
-          <span>Algorithm</span>
-
+          <span>{t.algorithmLabel}</span>
           <select
             value={algorithm}
             onChange={(event) => setAlgorithm(event.target.value as Algorithm)}
             disabled={busy}
           >
-            <option value="sliding">Sliding Window</option>
-            <option value="fixed">Fixed Window</option>
+            <option value="sliding">{t.slidingOption}</option>
+            <option value="fixed">{t.fixedOption}</option>
           </select>
         </label>
 
         <label className="flex items-center gap-2">
-          <span>Burst size</span>
-
+          <span>{t.burstLabel}</span>
           <select
             value={burstSize}
             onChange={(event) => setBurstSize(Number(event.target.value) as BurstSize)}
             disabled={busy}
           >
-            <option value={1}>1 request</option>
-            <option value={5}>5 requests</option>
-            <option value={10}>10 requests</option>
-            <option value={20}>20 requests</option>
+            <option value={1}>1 {t.requestSingular}</option>
+            <option value={5}>5 {t.requestPlural}</option>
+            <option value={10}>10 {t.requestPlural}</option>
+            <option value={20}>20 {t.requestPlural}</option>
           </select>
         </label>
       </div>
@@ -224,11 +204,11 @@ export function RateLimitPlayground() {
       {/* Session actions */}
       <div className="flex flex-wrap gap-3">
         <button onClick={createSession} disabled={busy || !validConfiguration}>
-          Create demo session
+          {t.createSession}
         </button>
 
         <button className="secondary" onClick={() => sendRequests(1)} disabled={busy || !session}>
-          Send one request
+          {t.sendOne}
         </button>
 
         <button
@@ -236,31 +216,30 @@ export function RateLimitPlayground() {
           onClick={() => sendRequests(burstSize)}
           disabled={busy || !session}
         >
-          Send burst ×{burstSize}
+          {t.sendBurst(burstSize)}
         </button>
 
         <button className="secondary" onClick={stopRequests} disabled={!isSending}>
-          Stop
+          {t.stop}
         </button>
 
         <button className="secondary" onClick={resetSession} disabled={busy || !session}>
-          Reset session
+          {t.reset}
         </button>
       </div>
 
       <p className="status" role="status" aria-live="polite">
-        {message}
+        {message ?? t.initialMessage}
       </p>
 
       {/* Session information */}
       {session && (
         <div className="space-y-2">
           <p>
-            <strong>Session active</strong>
+            <strong>{t.sessionActive}</strong>
           </p>
-
           <p className="muted">
-            Limit: {session.config.limit} requests / {session.config.windowSeconds} seconds
+            {t.sessionLimitSummary(session.config.limit, session.config.windowSeconds)}
           </p>
         </div>
       )}
@@ -268,16 +247,15 @@ export function RateLimitPlayground() {
       {/* Request history */}
       <div className="space-y-3">
         <div className="flex flex-wrap justify-between gap-2">
-          <h3>Request history</h3>
-
+          <h3>{t.historyHeading}</h3>
           <p className="muted">
-            Showing {visibleResponses.length} / {responses.length} (max {HISTORY_LIMIT})
+            {t.historyShowing(visibleResponses.length, responses.length, HISTORY_LIMIT)}
           </p>
         </div>
 
         <div className="terminal" aria-live="polite">
           {visibleResponses.length === 0 ? (
-            <p>$ Awaiting request activity…</p>
+            <p>{t.awaitingActivity}</p>
           ) : (
             visibleResponses.map((result, index) => (
               <div
@@ -285,23 +263,18 @@ export function RateLimitPlayground() {
                 className={result.status === 429 ? 'blocked' : 'allowed'}
               >
                 <span>#{responses.length - index}</span>
-
                 <span>HTTP {result.status}</span>
-
                 <span>{result.durationMs} ms</span>
-
-                <span>remaining {result.rateLimit.remaining ?? '—'}</span>
-
+                <span>
+                  {t.remaining} {result.rateLimit.remaining ?? '—'}
+                </span>
                 <span>
                   {result.rateLimit.retryAfterSeconds !== null
-                    ? `retry ${result.rateLimit.retryAfterSeconds}s`
-                    : 'accepted'}
+                    ? t.retryIn(result.rateLimit.retryAfterSeconds)
+                    : t.accepted}
                 </span>
-
                 {result.status === 429 && (
-                  <span>
-                    {readScope(result.body) === 'service' ? 'Service quota' : 'Demo quota'}
-                  </span>
+                  <span>{readScope(result.body) === 'service' ? t.serviceQuota : t.demoQuota}</span>
                 )}
               </div>
             ))
